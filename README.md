@@ -6,7 +6,7 @@
 - Via SSH, as root, run: 
 
 ```
-curl -o /usr/local/bin/pfw https://raw.githubusercontent.com/websavers/Plesk-Firewall-CLI-Helper/master/pfw`
+curl -o /usr/local/bin/pfw https://raw.githubusercontent.com/websavers/Plesk-Firewall-CLI-Helper/master/pfw
 chmod +x /usr/local/bin/pfw
 ln -s /usr/local/bin/pfw /usr/bin/pfw
 ```
