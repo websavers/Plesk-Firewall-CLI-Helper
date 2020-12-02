@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PHP=/opt/plesk/php/7.4/bin/php
+
 function show_help {
   echo "Use pfw -d 1.1.1.1 to block 1.1.1.1"
 }
@@ -35,7 +37,7 @@ else
       /usr/local/psa/bin/modules/firewall/settings -s -name 'Custom Blocks' -direction input -action deny -remote-addresses $block_ip
     else
       SERIALIZED_RULE=$(plesk db -Ne 'select object from module_firewall_rules where configuration_id=2 and object like "%Custom Blocks%"')
-      EXISTING_IPS=$(echo $SERIALIZED_RULE | php -R '$arr = unserialize($argn); echo implode(",",$arr["from"]);')
+      EXISTING_IPS=$(echo $SERIALIZED_RULE | $PHP -R '$arr = unserialize($argn); echo implode(",",$arr["from"]);')
       echo "Adding $block_ip to $EXISTING_IPS in rule 'Custom Blocks'..."
       /usr/local/psa/bin/modules/firewall/settings -s -id $RULE_ID -remote-addresses "$block_ip,$EXISTING_IPS"
     fi
