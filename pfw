@@ -54,7 +54,7 @@ else
       echo '[pfw]
 enabled = true
 bantime = 1w
-action = iptables-allports[name="pfw"]' > /etc/fail2ban/jail.d/pfw.conf
+action = iptables-allports[name="pfw", protocol=tcp, bantime=1w]' > /etc/fail2ban/jail.d/pfw.conf
       systemctl restart fail2ban
       sleep 10 #wait for service to restart
     fi
