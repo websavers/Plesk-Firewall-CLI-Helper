@@ -1,8 +1,10 @@
 # Plesk-Firewall-CLI-Helper
- Plesk FIrewall's CLI tools are not great. This helps by emulating how CSF works via CLI
+ Plesk Firewall's CLI tools are pretty bad. This helps by emulating how CSF works via CLI
 
 # Installation Instructions
 - On Plesk server, ensure you have the Plesk firewall extension enabled
+- For optimal performance, enable fail2ban as well. 
+- For lots of banned IPs use fail2ban with jail iptables-ipset-proto6.conf for allports banning.
 - Via SSH, as root, run: 
 
 ```
