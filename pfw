@@ -6,6 +6,23 @@ function show_help {
   echo "Use pfw -d 1.1.1.1 to block 1.1.1.1"
 }
 
+# Helper Function:
+# Create loopback SSH session to confirm the changes. Plesk requires this to confirm changes.
+# You will be prompted to enter the root password before it can finish.
+function plesk_firewall_confirm() {
+  plesk bin modules/firewall/settings --confirm
+  echo "============================================================"
+  echo "To confirm Plesk firewall settings, must enter root password"
+  echo "============================================================"
+  ssh root@localhost "plesk bin modules/firewall/settings --confirm"
+  if [ $? -ne 0 ]; then
+    echo "Confirm failed. Probably timed out. Trying one last time..."
+    plesk bin modules/firewall/settings --confirm
+    ssh root@localhost "plesk bin modules/firewall/settings --confirm"
+  fi
+}
+
+
 # A POSIX variable
 OPTIND=1 # Reset in case getopts has been used previously in the shell.
 # Initialize our own variables:
@@ -29,6 +46,19 @@ if [ -z "$block_ip" ]; then
     echo "You did not provide an IP address to block. Use -d IP to block an IP."
     exit 0
 else
+  
+  if [ $(systemctl is-active fail2ban) == "active" ]; then 
+  
+    if [ ! -e /etc/fail2ban/jail.d/pfw.conf ]; then
+      echo '[pfw]
+enabled = true
+bantime = 1w
+action = iptables-allports[name="pfw"]' > /etc/fail2ban/jail.d/pfw.conf
+      systemctl restart fail2ban
+    fi
+    /usr/bin/fail2ban-client set pfw banip $block_ip
+    
+  else
     # Ref: https://support.plesk.com/hc/en-us/articles/115002552134-How-to-manage-Plesk-firewall-via-CLI- 
     
     RULE_ID=$(plesk db -Ne 'select id from module_firewall_rules where configuration_id=2 and object like "%Custom Blocks%"');
@@ -43,5 +73,6 @@ else
     fi
     
     /usr/local/psa/bin/modules/firewall/settings -a # apply
-    /usr/local/psa/bin/modules/firewall/settings -c # confirm changes
+    plesk_firewall_confirm
+  fi
 fi
