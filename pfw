@@ -50,12 +50,15 @@ else
   if [ $(systemctl is-active fail2ban) == "active" ]; then 
   
     if [ ! -e /etc/fail2ban/jail.d/pfw.conf ]; then
+      echo "First time fail2ban setup in progress..."
       echo '[pfw]
 enabled = true
 bantime = 1w
 action = iptables-allports[name="pfw"]' > /etc/fail2ban/jail.d/pfw.conf
       systemctl restart fail2ban
+      sleep 10 #wait for service to restart
     fi
+    echo "Adding $block_ip to fail2ban jail: pfw"
     /usr/bin/fail2ban-client set pfw banip $block_ip
     
   else
