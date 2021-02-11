@@ -6,22 +6,6 @@ function show_help {
   echo "Use pfw -d 1.1.1.1 to block 1.1.1.1"
 }
 
-# Helper Function:
-# Create loopback SSH session to confirm the changes. Plesk requires this to confirm changes.
-# You will be prompted to enter the root password before it can finish.
-function plesk_firewall_confirm() {
-  plesk bin modules/firewall/settings --confirm
-  echo "============================================================"
-  echo "To confirm Plesk firewall settings, must enter root password"
-  echo "============================================================"
-  ssh root@localhost "plesk bin modules/firewall/settings --confirm"
-  if [ $? -ne 0 ]; then
-    echo "Confirm failed. Probably timed out. Trying one last time..."
-    plesk bin modules/firewall/settings --confirm
-    ssh root@localhost "plesk bin modules/firewall/settings --confirm"
-  fi
-}
-
 
 # A POSIX variable
 OPTIND=1 # Reset in case getopts has been used previously in the shell.
@@ -75,7 +59,7 @@ bantime = 1w' > /etc/fail2ban/jail.d/pfw.conf
       /usr/local/psa/bin/modules/firewall/settings -s -id $RULE_ID -remote-addresses "$block_ip,$EXISTING_IPS"
     fi
     
-    /usr/local/psa/bin/modules/firewall/settings -a # apply
-    plesk_firewall_confirm
+    /usr/local/psa/bin/modules/firewall/settings --apply # apply
+    SSH_CLIENT="127.0.0.1 65535 22" plesk bin modules/firewall/settings --confirm
   fi
 fi
