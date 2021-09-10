@@ -4,34 +4,45 @@ PHP=/opt/plesk/php/7.4/bin/php
 
 function show_help {
   echo "Use pfw -d 1.1.1.1 to block 1.1.1.1"
+  echo "You may replace -d with -g to search or -r to remove a block"
 }
 
 
 # A POSIX variable
 OPTIND=1 # Reset in case getopts has been used previously in the shell.
 # Initialize our own variables:
-block_ip=""
+ip=""
 
-while getopts "h?d:" opt; do
+while getopts "h?d:g:r:" opt; do
     case "$opt" in
     h|\?)
       show_help
       exit 0
       ;;
-    d) block_ip=$OPTARG
-       ;;
+    d) 
+      ip=$OPTARG
+      action=block
+      ;;
+    g) 
+      ip=$OPTARG
+      action=search
+      ;;
+    r) 
+      ip=$OPTARG
+      action=remove
+      ;;
     esac
 done
 
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 
-if [ -z "$block_ip" ]; then
-    echo "You did not provide an IP address to block. Use -d IP to block an IP."
+if [ -z "$ip" ]; then
+    echo "You did not provide an IP address."
     exit 0
-else
+fi
   
-  if [ $(systemctl is-active fail2ban) == "active" ]; then 
+if [ $(systemctl is-active fail2ban) == "active" ]; then 
   
     if [ ! -e /etc/fail2ban/jail.d/pfw.conf ]; then
       echo "First time fail2ban setup in progress..."
@@ -42,24 +53,33 @@ bantime = 1w' > /etc/fail2ban/jail.d/pfw.conf
       systemctl restart fail2ban
       sleep 10 #wait for service to restart
     fi
-    echo "Adding $block_ip to fail2ban jail: pfw"
-    /usr/bin/fail2ban-client set pfw banip $block_ip
     
-  else
+    if [[ "$action" == "block" ]]; then
+      echo "Adding $ip to fail2ban jail: pfw"
+      /usr/bin/fail2ban-client set pfw banip $ip
+    fi
+    if [[ "$action" == "search" ]]; then
+      echo "Searching for $ip in fail2ban..."
+      zgrep 'Ban' /var/log/fail2ban.log* | grep $ip
+    fi
+    if [[ "$action" == "remove" ]]; then
+      echo "Removing $ip from fail2ban jail: pfw"
+      /usr/bin/fail2ban-client unban $ip
+    fi
+else
     # Ref: https://support.plesk.com/hc/en-us/articles/115002552134-How-to-manage-Plesk-firewall-via-CLI- 
     
     RULE_ID=$(plesk db -Ne 'select id from module_firewall_rules where configuration_id=2 and object like "%Custom Blocks%"');
     if [ -z "$RULE_ID" ]; then
       echo "Creating new rule for Custom Blocks..."
-      /usr/local/psa/bin/modules/firewall/settings -s -name 'Custom Blocks' -direction input -action deny -remote-addresses $block_ip
+      /usr/local/psa/bin/modules/firewall/settings -s -name 'Custom Blocks' -direction input -action deny -remote-addresses $ip
     else
       SERIALIZED_RULE=$(plesk db -Ne 'select object from module_firewall_rules where configuration_id=2 and object like "%Custom Blocks%"')
       EXISTING_IPS=$(echo $SERIALIZED_RULE | $PHP -R '$arr = unserialize($argn); echo implode(",",$arr["from"]);')
-      echo "Adding $block_ip to $EXISTING_IPS in rule 'Custom Blocks'..."
-      /usr/local/psa/bin/modules/firewall/settings -s -id $RULE_ID -remote-addresses "$block_ip,$EXISTING_IPS"
+      echo "Adding $ip to $EXISTING_IPS in rule 'Custom Blocks'..."
+      /usr/local/psa/bin/modules/firewall/settings -s -id $RULE_ID -remote-addresses "$ip,$EXISTING_IPS"
     fi
     
     /usr/local/psa/bin/modules/firewall/settings --apply # apply
     SSH_CLIENT="127.0.0.1 65535 22" plesk bin modules/firewall/settings --confirm
-  fi
 fi
